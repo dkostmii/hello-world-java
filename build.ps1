@@ -3,15 +3,21 @@ param(
   [switch] $Clean = $false
 )
 
+# CHANGE THIS
+$MainClass = "helloworld.App";
+
 # Definitions
 
 $targetDir = "target";
 $classesDir = (Join-Path $targetDir "classes");
+$srcDir = (Join-Path "src" "main" "java");
 
 $manifestFile = "MANIFEST.MF";
-$manifestContent = "Main-Class: helloworld.App";
+$manifestContent = "Main-Class: " + $MainClass;
 
-$jarFile = "hello-world.jar";
+$ProjName = (Split-Path -Path (Get-Location) -Leaf);
+
+$jarFile = "$ProjName.jar";
 $jarFileClassesRel = (Join-Path ".." $jarFile);
 $jarFileAbs = (Join-Path $targetDir $jarFile);
 
@@ -46,22 +52,36 @@ function Build {
     New-Item $classesDir -ItemType Directory | Out-Null;
   }
   
+  # List all source files
+  $srcFiles = (Get-ChildItem $srcDir -Recurse -File | ForEach-Object {
+    $_.FullName
+  });
+
   $prevLocation = Get-Location;
   Set-Location $classesDir;
   
+  # Create the MANIFEST.MF file
   if (-not (Test-Path $manifestFile -PathType Leaf)) {
     New-Item -Path $manifestFile -ItemType File | Out-Null;
     Set-Content -Path $manifestFile -Value $manifestContent;
   }
-  
+
   Set-Location $prevLocation;
   
   Write-Output "Building...";
-  javac -sourcepath src -d $classesDir src\main\java\helloworld\*.java
+  # Step 1. Build the classes
+
+  # write that list of source files to special argument file
+  Set-Content -Path "srcList" -Value $srcFiles;
+  # use that argument file as an argument
+  javac -sourcepath src -d $classesDir "@srcList"
+  # remove the argument file
+  Remove-Item srcList;
   
   $prevLocation = Get-Location;
   Set-Location $classesDir;
   
+  # Step 2. Package the JAR file
   jar -cfm $jarFileClassesRel $manifestFile .
   
   Set-Location $prevLocation;
@@ -71,9 +91,10 @@ function Run {
   Write-Output "Running the project...";
   Write-Output "";
   Write-Host "#######################################################" -ForegroundColor Blue;
-  $output = java -jar $jarFileAbs
-  Write-Host $output -ForegroundColor Blue;
-
+  $output = (java -jar $jarFileAbs).Split("`n");
+  $output | ForEach-Object {
+    Write-Host $_ -ForegroundColor Blue;
+  }
   Write-Host "#######################################################" -ForegroundColor Blue;
 }
 
