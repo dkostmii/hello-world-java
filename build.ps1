@@ -3,6 +3,8 @@ param(
   [switch] $Clean = $false
 )
 
+# Definitions
+
 $targetDir = "target";
 $classesDir = (Join-Path $targetDir "classes");
 
@@ -12,6 +14,22 @@ $manifestContent = "Main-Class: helloworld.App";
 $jarFile = "hello-world.jar";
 $jarFileClassesRel = (Join-Path ".." $jarFile);
 $jarFileAbs = (Join-Path $targetDir $jarFile);
+
+# Check java, jar executables are accessible from the PATH
+function Check {
+  $javaOk = $false;
+  $jarOk = $false;
+
+  if (Get-Command "java" -ErrorAction SilentlyContinue) {
+    $javaOk = $true;
+  }
+
+  if (Get-Command "jar" -ErrorAction SilentlyContinue) {
+    $jarOk = $true;
+  }
+
+  return ($javaOk -and $jarOk);
+}
 
 function Clean {
   Write-Output "Cleaning build...";
@@ -59,6 +77,15 @@ function Run {
   Write-Host "#######################################################" -ForegroundColor Blue;
 }
 
+
+# Script scenario
+
+if (-not (Check)) {
+  Write-Host "Seems, Java bin/ directory is not in the PATH variable." -ForegroundColor Red;
+  Write-Host "Exiting..." -ForegroundColor Red;
+  exit;
+}
+
 if ($Clean) {
   Clean;
 }
@@ -68,7 +95,6 @@ if (-not (Test-Path $jarFileAbs -PathType Leaf)) {
 } else {
   Write-Host "Project is alread built. Skipping building." -ForegroundColor Yellow;
 }
-
 
 if ($Run) {
   Run;
